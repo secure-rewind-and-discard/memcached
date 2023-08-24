@@ -1,53 +1,74 @@
-# Memcached
+# Memcached with SDRaD
 
-Memcached is a high performance multithreaded event-based key/value cache
-store intended to be used in a distributed system.
+This repository contains the source code of a use case for SDRaD: Memcached 
 
-See: https://memcached.org/about
+## How to get started
 
-A fun story explaining usage: https://memcached.org/tutorial
+This repository can be cloned using the following commands:
 
-If you're having trouble, try the wiki: https://memcached.org/wiki
+```
+git clone -b sdrad git@github.com:secure-rewind-and-discard/memcached.git
+```
+`sdrad` branch is based on 1.6.13. 
 
-If you're trying to troubleshoot odd behavior or timeouts, see:
-https://memcached.org/timeouts
+ - Memcached should be compiled with SDRaD library. Please make sure that Linux dynamic linker search path contains the SDRaD library path. Follow the [instructions](https://github.com/secure-rewind-and-discard/secure-rewind-and-discard). Note that Memcached is a multi-threaded application; the SDRaD library should be compiled with support `SDRAD_MULTITHREAD`. 
 
-https://memcached.org/ is a good resource in general. Please use the mailing
-list to ask questions, github issues aren't seen by everyone!
+```
+cd memcached
+./autogen.sh
+./configure
+``` 
 
-## Dependencies
+Compile Memcached
+```
+make -j4 
+``` 
+Run Memcached 
+``` 
 
-* libevent - https://www.monkey.org/~provos/libevent/ (libevent-dev)
-* libseccomp (optional, experimental, linux) - enables process restrictions for
-  better security. Tested only on x86-64 architectures.
-* openssl (optional) - enables TLS support. need relatively up to date
-  version.
+``` 
 
-## Environment
+## Benchmark 
 
-Be warned that the -k (mlockall) option to memcached might be
-dangerous when using a large cache. Just make sure the memcached machines
-don't swap.  memcached does non-blocking network I/O, but not disk.  (it
-should never go to disk, or you've lost the whole point of it)
+[YCSB](https://github.com/brianfrankcooper/YCSB) is used. 
 
-## Build status
 
-See https://build.memcached.org/ for multi-platform regression testing status.
+start Memcached. Please check for different command-line arguments [here](https://github.com/memcached/memcached/wiki/ConfiguringServer#commandline-arguments). 
 
-## Bug reports
+```
+./memcached   -M -t 1  -m 30000  
+```
+* [Install YCSB with Memcached Binding](https://github.com/brianfrankcooper/YCSB/blob/master/memcached/README.md). Note that Python-2 is needed to run YCSB. 
 
-Feel free to use the issue tracker on github.
 
-**If you are reporting a security bug** please contact a maintainer privately.
-We follow responsible disclosure: we handle reports privately, prepare a
-patch, allow notifications to vendor lists. Then we push a fix release and your
-bug can be posted publicly with credit in our release notes and commit
-history.
 
-## Website
+Example command for YCSB. 
+```
+python2 ./bin/ycsb load memcached -s -P workloads/workloada -p recordcount=5000000 -p operationcount=10000000 -p "memcached.hosts=127.0.0.1" >outputload.txt
 
-* https://www.memcached.org
+python2 ./bin/ycsb run memcached -s -P workloads/workloada -p recordcount=5000000 -p operationcount=10000000 -p "memcached.hosts=127.0.0.1" >outputload.txt
+```
 
-## Contributing
+### Licence 
+This version of Memcached is modified to support secure-rewind-and-discard
 
-See https://github.com/memcached/memcached/wiki/DevelopmentRepos
+© Ericsson AB 2022-2023
+  
+SPDX-License-Identifier: BSD 3-Clause
+ 
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+

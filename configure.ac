@@ -392,6 +392,14 @@ AC_CACHE_CHECK([for libevent directory], ac_cv_libevent_dir, [
 ])
   fi
 ])
+
+LIBS="-Wl,--wrap=assoc_find -Wl,--wrap=pthread_create -Wl,--wrap=assoc_init \
+-Wl,--wrap=store_item -Wl,--wrap=item_remove -Wl,--wrap=item_get \
+-Wl,--wrap=item_lock -Wl,--wrap=item_unlock -Wl,--wrap=do_item_remove \
+-Wl,--wrap=slabs_init -Wl,--wrap=slabs_alloc -Wl,--wrap=do_cache_alloc \
+-Wl,--wrap=item_link -Wl,--wrap=item_unlink -Wl,--wrap=item_trylock \
+-Wl,--wrap=item_trylock_unlock -Wl,--wrap=do_cache_free -L../secure-rewind-and-discard/src/ -lsdrad $LIBS" 
+
 LIBS="-levent $LIBS"
 if test $ac_cv_libevent_dir != "(system)"; then
   if test -d "$ac_cv_libevent_dir/lib" ; then
@@ -814,7 +822,7 @@ then
 elif test "$GCC" = "yes"
 then
   GCC_VERSION=`$CC -dumpversion`
-  CFLAGS="$CFLAGS -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls"
+  CFLAGS="$CFLAGS -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fstack-protector-strong -fPIE  -fcf-protection"
   if test "x$enable_asan" = "xyes"; then
     CFLAGS="$CFLAGS -fsanitize=address"
   fi

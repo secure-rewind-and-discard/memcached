@@ -6,6 +6,11 @@
  * a multiplier factor from there, up to half the maximum slab size. The last
  * slab size is always 1MB, since that's the maximum item size allowed by the
  * memcached protocol.
+ * This version is modified to support secure-rewinding
+ * © Ericsson AB 2022-2023
+ * 
+ * SPDX-License-Identifier: BSD 3-Clause
+ * 
  */
 #include "memcached.h"
 #include "storage.h"
@@ -22,6 +27,8 @@
 #include <signal.h>
 #include <assert.h>
 #include <pthread.h>
+#include "../secure-rewind-and-discard/src/sdrad_api.h"
+#include "memcached_with_sdrad.h"
 
 //#define DEBUG_SLAB_MOVER
 /* powers-of-N allocation structures */
@@ -338,7 +345,7 @@ static int grow_slab_list (const unsigned int id) {
     slabclass_t *p = &slabclass[id];
     if (p->slabs == p->list_size) {
         size_t new_size =  (p->list_size != 0) ? p->list_size * 2 : 16;
-        void *new_list = realloc(p->slab_list, new_size * sizeof(void *));
+        void *new_list = sdrad_realloc(MEMCACHED_DATA_UDI, p->slab_list, new_size * sizeof(void *));
         if (new_list == 0) return 0;
         p->list_size = new_size;
         p->slab_list = new_list;
@@ -612,7 +619,7 @@ static void *memory_allocate(size_t size) {
 
     if (mem_base == NULL) {
         /* We are not using a preallocated large memory chunk */
-        ret = malloc(size);
+        ret = sdrad_malloc(MEMCACHED_DATA_UDI, size);
     } else {
         ret = mem_current;
 

@@ -12,6 +12,11 @@
  *  Authors:
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
+ * This version is modified to support secure-rewinding
+ * © Ericsson AB 2022-2023
+ * 
+ * SPDX-License-Identifier: BSD 3-Clause
+ * 
  */
 #include "memcached.h"
 #include "storage.h"
@@ -45,6 +50,8 @@
 #include <assert.h>
 #include <sysexits.h>
 #include <stddef.h>
+#include "../secure-rewind-and-discard/src/sdrad_api.h"
+#include "memcached_with_sdrad.h"
 
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
@@ -903,8 +910,12 @@ void conn_free(conn *c) {
 }
 
 static void conn_close(conn *c) {
+        if(m_nested_domain_call == 1){
+        conn_set_state(c, conn_closed);
+        return;
+    }
     assert(c != NULL);
-
+    
     if (c->thread) {
         LOGGER_LOG(c->thread->l, LOG_CONNEVENTS, LOGGER_CONNECTION_CLOSE, NULL,
                 &c->request_addr, c->request_addr_size, c->transport,
@@ -3381,8 +3392,48 @@ void event_handler(const evutil_socket_t fd, const short which, void *arg) {
         return;
     }
 
-    drive_machine(c);
-
+    if(c -> thread == NULL) { // main thread no isolation
+        drive_machine(c);
+        return; 
+    }
+    if(!tid)
+        tid =  pthread_self(); 
+    int ret = sdrad_init(tid, SDRAD_EXECUTION_DOMAIN | SDRAD_NONISOLATED_DOMAIN | SDRAD_RETURN_TO_CURRENT); 
+    if(ret == SDRAD_SUCCESSFUL_RETURNED || ret == SDRAD_WARNING_SAVE_EC){
+        if(m_initilazation == false){
+            m_initilazation_func(tid);
+        }
+        if( ms_data_ptr -> slabs_alloc_flag == 0){
+            ms_data_ptr -> it_copy = sdrad_malloc(tid, 4096);
+            ms_data_ptr -> slabs_alloc_flag = 1; 
+        }
+        if(c->state == conn_nread || c->state == conn_read){
+            if(c -> item != NULL) 
+                m_passing_buffer_func(c);
+        }
+        memcpy(c_copy, c, sizeof(conn));  
+        c_copy -> thread = thread_copy; 
+        memcpy(c_copy -> thread, c -> thread, sizeof(LIBEVENT_THREAD));  
+        c_copy -> thread -> l = domain_log;
+        memcpy(c_copy -> thread -> l, c -> thread -> l, sizeof(logger));
+        c_copy -> thread-> rbuf_cache = m_cache;
+        m_nested_domain_call= 1; 
+        sdrad_enter(tid);
+        drive_machine(c_copy);
+        sdrad_exit();
+        memcpy(c, c_copy, sizeof(conn));  
+        memcpy(c->thread, c_copy -> thread, sizeof(LIBEVENT_THREAD)); 
+        m_nested_domain_call= 0;
+        if(c->state == conn_closed) {
+            conn_close(c);
+        }else{
+            sdrad_memcached_handle(c); ;
+        }
+        sdrad_deinit(tid); 
+    }else{
+        m_nested_domain_call = 0; 
+        conn_close(c);
+    }
     /* wait for next event */
     return;
 }

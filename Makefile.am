@@ -26,6 +26,7 @@ memcached_SOURCES = memcached.c memcached.h \
                     crawler.c crawler.h \
                     itoa_ljust.c itoa_ljust.h \
                     slab_automove.c slab_automove.h \
+					memcached_with_sdrad.c memcached_with_sdrad.h \
                     authfile.c authfile.h \
                     restart.c restart.h \
                     proto_text.c proto_text.h \

@@ -9,7 +9,15 @@
  *       or commercial.  It's free."
  *
  * The rest of the file is licensed under the BSD license.  See LICENSE.
+ *
+ * This version is modified to support secure-rewinding
+ * © Ericsson AB 2022-2023
+ * 
+ * SPDX-License-Identifier: BSD 3-Clause
+ * 
  */
+
+
 
 #include "memcached.h"
 #include <sys/stat.h>
@@ -24,6 +32,8 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#include "../secure-rewind-and-discard/src/sdrad_api.h"
+#include "memcached_with_sdrad.h"
 
 static pthread_cond_t maintenance_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t maintenance_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -59,7 +69,7 @@ void assoc_init(const int hashtable_init) {
     if (hashtable_init) {
         hashpower = hashtable_init;
     }
-    primary_hashtable = calloc(hashsize(hashpower), sizeof(void *));
+    primary_hashtable = sdrad_calloc(MEMCACHED_DATA_UDI, hashsize(hashpower), sizeof(void *));
     if (! primary_hashtable) {
         fprintf(stderr, "Failed to init hashtable.\n");
         exit(EXIT_FAILURE);
@@ -222,7 +232,7 @@ static void *assoc_maintenance_thread(void *arg) {
                     expand_bucket++;
                     if (expand_bucket == hashsize(hashpower - 1)) {
                         expanding = false;
-                        free(old_hashtable);
+                        sdrad_free(MEMCACHED_DATA_UDI, old_hashtable);
                         STATS_LOCK();
                         stats_state.hash_bytes -= hashsize(hashpower - 1) * sizeof(void *);
                         stats_state.hash_is_expanding = false;
