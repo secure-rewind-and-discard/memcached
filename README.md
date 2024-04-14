@@ -16,6 +16,7 @@ git clone -b sdrad git@github.com:secure-rewind-and-discard/memcached.git
 ```
 cd memcached
 ./autogen.sh
+export LD_LIBRARY_PATH=/path/to/libsdrad.so
 ./configure
 ``` 
 
@@ -25,7 +26,7 @@ make -j4
 ``` 
 Run Memcached 
 ``` 
-
+./memcached/memcached
 ``` 
 
 ## Benchmark 
